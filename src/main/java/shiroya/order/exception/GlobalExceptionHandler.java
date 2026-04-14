@@ -7,17 +7,29 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntime(RuntimeException ex) {
 
-        if (ex.getMessage().contains("Insufficient stock")) {
-            return ResponseEntity.status(409).body(ex.getMessage());
-        }
+    @ExceptionHandler(UnAuthorizedUserException.class)
+    public ResponseEntity<String> unAuthorizedUserException(RuntimeException ex)
+    {
+        return ResponseEntity.status(401).body(ex.getMessage());
+    }
 
-        if (ex.getMessage().contains("Product not found")) {
-            return ResponseEntity.status(404).body(ex.getMessage());
-        }
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<String> insufficientStockException(RuntimeException ex) {
+        return ResponseEntity.status(409).body(ex.getMessage());
+    }
 
-        return ResponseEntity.status(500).body("Something went wrong");
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ResponseEntity<String> productNotFoundException(RuntimeException ex) {
+
+        return ResponseEntity.status(404).body(ex.getMessage());
+
+    }
+
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<String> userNotFoundException(RuntimeException ex) {
+
+        return ResponseEntity.status(400).body(ex.getMessage());
+
     }
 }
