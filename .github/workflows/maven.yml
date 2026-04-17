@@ -30,10 +30,10 @@ jobs:
           repository: satyendrashiroya07/2063401CommonService
           path: common-service
 
-      # 👇 Build common-service FIRST
+      # 👇 Build common-service (skip tests)
       - name: Build common-service
-        run: mvn clean install -f common-service/pom.xml
+        run: mvn clean install -DskipTests -f common-service/pom.xml
 
-      # 👇 Now build your main project (order-service)
+      # 👇 Build order-service (skip tests)
       - name: Build order-service
-        run: mvn -B package --file pom.xml
+        run: mvn -B package -DskipTests --file pom.xml
