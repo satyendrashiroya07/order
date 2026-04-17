@@ -31,9 +31,6 @@ public class KafkaConfig {
     @Value("${spring.kafka.producer.acks}")
     private String acks;
 
-//	@Value("${spring.kafka.producer.retries}")
-//	private String retries;
-
     @Value("${spring.kafka.producer.properties.delivery.timeout.ms}")
     private String deliveryTimeout;
 
@@ -64,16 +61,6 @@ public class KafkaConfig {
 
         return config;
     }
-
-//    @Bean
-//    public ProducerFactory<String, OrderEvent> producerConfigs1() {
-//        Map<String, Object> config = new HashMap<>();
-//        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-//        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-//        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-//
-//        return new DefaultKafkaProducerFactory<>(config);
-//    }
 
     @Bean
     ProducerFactory<String,OrderEvent> producerFactory(){

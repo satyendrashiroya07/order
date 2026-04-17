@@ -1,14 +1,14 @@
 package shiroya.order.service;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import productEvent.userEvent.UserDtoFeing;
 import shiroya.order.entity.Order;
 import shiroya.order.exception.InsufficientStockException;
 import shiroya.order.exception.ProductNotFoundException;
@@ -16,11 +16,14 @@ import shiroya.order.exception.UserNotFoundException;
 import shiroya.order.feignClient.UserClient;
 import shiroya.order.producer.OrderProducer;
 import shiroya.order.repo.OrderRepository;
+import shiroya.order.security.JwtUtil;
 import shiroya.orderEvent.OrderEvent;
+import shiroya.userEvent.UserDtoFeing;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -29,35 +32,39 @@ public class OrderService {
     private final OrderRepository repository;
     private final OrderProducer producer;
     private final UserClient userClient;
+    private final JwtUtil jwtUtil;
 
-    public Order createOrder(OrderEvent request, String userId)
+    public Order createOrder(OrderEvent request, HttpServletRequest HttpRequest)
     {
+        final String userId = HttpRequest.getAttribute("userId").toString();
         final String url = "http://localhost:8082/product/validateAndReduce";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Gateway-Secret", "mysecret");
-        //headers.set("Authorization", "Bearer dummy-token");
-
-        HttpEntity<OrderEvent> entity = new HttpEntity<>(request, headers);
+        final String authHeader = HttpRequest.getHeader("Authorization");
+        final String token = "Bearer " + authHeader.substring(7);
 
         ResponseEntity<Boolean> responseProductAvailability;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", token);
+
+        HttpEntity<OrderEvent> entity = new HttpEntity<>(request, headers);
 
         Order saved = null;
         try
         {
-             responseProductAvailability =
+            UserDtoFeing user = userClient.getUser(userId, token);
+            if (Objects.isNull(user)) {
+                log.error("User Not Found"+ getClass());
+                throw new UserNotFoundException("User Not Found");
+            }
+            log.error("User Found Try to Find Product Details for Product: "+request.getProductId()+" in " + getClass());
+
+            responseProductAvailability =
                     restTemplate.exchange(
                             url,
                             HttpMethod.POST,
                             entity,
                             Boolean.class
                     );
-
-            UserDtoFeing user = userClient.getUser(userId,"mysecret");
-
-            if (Objects.isNull(user)) {
-                throw new UserNotFoundException("User not found");
-            }
 
             String email = user.getUserEmail();
 
@@ -72,8 +79,7 @@ public class OrderService {
                 order.setEmail(email);
 
                 saved = repository.save(order);
-
-                // Publish event
+                log.info("Order Created and Save in DB");
                 OrderEvent event = OrderEvent.builder()
                         .orderId(saved.getId().toString())
                         .userId(saved.getUserId())
@@ -84,7 +90,7 @@ public class OrderService {
                         .build();
 
                 producer.sendOrderEvent(event);
-
+                log.info("Event Sent for kafka Consumer to send mail to user");
                 return saved;
             }
         }

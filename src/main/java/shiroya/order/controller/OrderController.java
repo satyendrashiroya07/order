@@ -1,5 +1,6 @@
 package shiroya.order.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,11 +18,8 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<Order> create(@RequestBody OrderEvent request,
-                                        @RequestHeader("X-User-Id") String tokenUser){
+                                        HttpServletRequest Httprequest){
 
-        if(!tokenUser.equals((request.getUserId()))){
-            throw new UnAuthorizedUserException("Unauthorized user!");
-        }
-            return ResponseEntity.ok(service.createOrder(request, tokenUser));
+        return ResponseEntity.ok(service.createOrder(request, Httprequest));
     }
 }
