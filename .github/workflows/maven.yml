@@ -1,0 +1,39 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 👇 Checkout current repo (order-service)
+      - name: Checkout order-service
+        uses: actions/checkout@v4
+
+      # 👇 Setup Java 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      # 👇 Clone common-service repo
+      - name: Checkout common-service
+        uses: actions/checkout@v4
+        with:
+          repository: satyendrashiroya07/2063401CommonService
+          path: common-service
+
+      # 👇 Build common-service (skip tests)
+      - name: Build common-service
+        run: mvn clean install -DskipTests -f common-service/pom.xml
+
+      # 👇 Build order-service (skip tests)
+      - name: Build order-service
+        run: mvn -B package -DskipTests --file pom.xml

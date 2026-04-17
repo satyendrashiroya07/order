@@ -1,7 +1,5 @@
 # 📦 Order Service (Spring Boot Microservice)
 
-
-
 ## 📌 Overview
 
 Order Service is responsible for managing order-related operations in the E-Commerce system.
