@@ -13,7 +13,6 @@ spring:
       acks: all
 
       properties:
-        spring.json.add.type.headers: false
         spring.json.trusted.packages: "*"
         delivery.timeout.ms: 120000
         linger.ms: 0
@@ -27,6 +26,15 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+
+      properties:
+        spring.json.trusted.packages: "*"
+        delivery.timeout.ms: 120000
+        linger.ms: 0
+        request.timeout.ms: 30000
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        spring.json.value.default.type: shiroya.paymentEvent.PaymentEvent
 
   datasource:
     url: jdbc:postgresql://localhost:5432/shiroyadb

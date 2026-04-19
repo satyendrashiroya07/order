@@ -1,6 +1,7 @@
 package shiroya.order.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -34,6 +35,7 @@ public class OrderService {
     private final UserClient userClient;
     private final JwtUtil jwtUtil;
 
+    @Transactional
     public Order createOrder(OrderEvent request, HttpServletRequest HttpRequest)
     {
         final String userId = HttpRequest.getAttribute("userId").toString();
@@ -74,7 +76,7 @@ public class OrderService {
                 order.setUserId(request.getUserId());
                 order.setProductId(request.getProductId());
                 order.setQuantity(request.getQuantity());
-                order.setStatus("CREATED");
+                order.setStatus("Pending");
                 order.setOrderDate(LocalDateTime.now());
                 order.setEmail(email);
 
@@ -85,8 +87,10 @@ public class OrderService {
                         .userId(saved.getUserId())
                         .productId(saved.getProductId())
                         .quantity(saved.getQuantity())
+                        .amount(saved.getQuantity()*request.getAmount())
+                        .paymentType("UPI")
                         .email(saved.getEmail())
-                        .status("Created")
+                        .status("Pending")
                         .build();
 
                 producer.sendOrderEvent(event);
