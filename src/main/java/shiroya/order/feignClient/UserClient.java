@@ -9,7 +9,7 @@ import shiroya.userEvent.UserDtoFeing;
 @FeignClient(name = "USER-SERVICE", url = "http://localhost:9095")
 public interface UserClient {
 
-    @GetMapping("/users/userid/{userId}")
+    @GetMapping("/users/id/{userId}")
     UserDtoFeing getUser(@PathVariable String userId,
                          @RequestHeader("Authorization") String token
                         );

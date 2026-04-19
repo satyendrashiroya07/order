@@ -1,4 +1,4 @@
-package shiroya.order.appConfig;
+package shiroya.order.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
