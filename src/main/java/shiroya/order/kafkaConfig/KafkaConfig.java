@@ -79,4 +79,14 @@ public class KafkaConfig {
                 .replicas(1)
                 .build();
     }
+
+    @Bean
+    public NewTopic paymentSuccessTopic() {
+        return TopicBuilder.name("order-confirmed").partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic paymentFailedTopic() {
+        return TopicBuilder.name("order-cancelled").partitions(3).replicas(1).build();
+    }
 }

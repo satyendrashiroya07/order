@@ -1,13 +1,9 @@
 package shiroya.order.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.Data;
+import shiroya.orderEvent.OrderStatus;
 
-import java.security.Timestamp;
-import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,10 +15,21 @@ public class Order {
     @GeneratedValue
     private UUID id;
 
+    @Column(length = 100, nullable = false)
     private String userId;
+
+    @Column(length = 100, nullable = false)
     private String productId;
+
+    @Column(length = 20, nullable = false)
     private int quantity;
-    private String status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
+
     private LocalDateTime orderDate;
+
+    @Column(length = 100, nullable = false)
     private String email;
 }

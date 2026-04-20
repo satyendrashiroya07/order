@@ -1,5 +1,7 @@
 package shiroya.order.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import shiroya.order.entity.Order;
@@ -15,13 +18,19 @@ import shiroya.order.exception.InsufficientStockException;
 import shiroya.order.exception.ProductNotFoundException;
 import shiroya.order.exception.UserNotFoundException;
 import shiroya.order.feignClient.UserClient;
+import shiroya.order.kafkaConfig.OutboxEvent;
 import shiroya.order.producer.OrderProducer;
 import shiroya.order.repo.OrderRepository;
-import shiroya.order.security.JwtUtil;
+import shiroya.order.repo.OutBoxEventRepo;
 import shiroya.orderEvent.OrderEvent;
+import shiroya.orderEvent.OrderRequest;
+import shiroya.orderEvent.OrderStatus;
+import shiroya.productEvent.ProductResponse;
 import shiroya.userEvent.UserDtoFeing;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -33,22 +42,23 @@ public class OrderService {
     private final OrderRepository repository;
     private final OrderProducer producer;
     private final UserClient userClient;
-    private final JwtUtil jwtUtil;
+    private final OutBoxEventRepo outBoxEventRepo;
+    private final ObjectMapper objectMapper;
 
     @Transactional
-    public Order createOrder(OrderEvent request, HttpServletRequest HttpRequest)
+    public Order createOrder(OrderRequest request, HttpServletRequest HttpRequest)
     {
         final String userId = HttpRequest.getAttribute("userId").toString();
         final String url = "http://localhost:8082/product/validateAndReduce";
         final String authHeader = HttpRequest.getHeader("Authorization");
         final String token = "Bearer " + authHeader.substring(7);
 
-        ResponseEntity<Boolean> responseProductAvailability;
+        ResponseEntity<ProductResponse> responseProductAvailability;
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", token);
 
-        HttpEntity<OrderEvent> entity = new HttpEntity<>(request, headers);
+        HttpEntity<OrderRequest> entity = new HttpEntity<>(request, headers);
 
         Order saved = null;
         try
@@ -65,59 +75,94 @@ public class OrderService {
                             url,
                             HttpMethod.POST,
                             entity,
-                            Boolean.class
+                            ProductResponse.class
                     );
 
-            String email = user.getUserEmail();
+            ProductResponse product = responseProductAvailability.getBody();
 
-            if (Boolean.TRUE.equals(responseProductAvailability.getBody()))
+            String email = user.getUserEmail();
+            double amount = product.getPrice()
+                    .multiply(BigDecimal.valueOf(request.getQuantity())).doubleValue();;
+
+            if (Objects.nonNull(product) && product.getQuantity() >= request.getQuantity())
             {
                 Order order = new Order();
                 order.setUserId(request.getUserId());
                 order.setProductId(request.getProductId());
                 order.setQuantity(request.getQuantity());
-                order.setStatus("Pending");
+                order.setStatus(OrderStatus.PAYMENT_PENDING);
                 order.setOrderDate(LocalDateTime.now());
                 order.setEmail(email);
 
                 saved = repository.save(order);
-                log.info("Order Created and Save in DB");
+                log.info("Order Created and Saved in DB");
+
                 OrderEvent event = OrderEvent.builder()
                         .orderId(saved.getId().toString())
                         .userId(saved.getUserId())
                         .productId(saved.getProductId())
                         .quantity(saved.getQuantity())
-                        .amount(saved.getQuantity()*request.getAmount())
+                        .amount(amount)
                         .paymentType("UPI")
                         .email(saved.getEmail())
-                        .status("Pending")
+                        .status(OrderStatus.PAYMENT_PENDING)
                         .build();
 
-                producer.sendOrderEvent(event);
-                log.info("Event Sent for kafka Consumer to send mail to user");
+                OutboxEvent kafkaDbEvent = new OutboxEvent();
+                kafkaDbEvent.setAggregateType("ORDER");
+                kafkaDbEvent.setAggregateId(order.getId().toString());
+                kafkaDbEvent.setEventType("ORDER_CREATED");
+                kafkaDbEvent.setPayload(convertToJson(event));
+                kafkaDbEvent.setStatus("NEW");
+
+                outBoxEventRepo.save(kafkaDbEvent);
+
                 return saved;
+            }
+            else
+            {
+                throw new InsufficientStockException("Insufficient stock for product: " + request.getProductId());
             }
         }
         catch (org.springframework.web.client.HttpClientErrorException ex)
         {
-        if (ex.getStatusCode().value() == 409)
-        {
-            throw new InsufficientStockException("Insufficient stock for product: " + request.getProductId());
-        }
-
-        if (ex.getStatusCode().value() == 404)
-        {
-            throw new ProductNotFoundException("Product not found: " + request.getProductId());
-        }
-
         throw new RuntimeException("Client error: " + ex.getMessage());
 
     } catch (Exception ex)
         {
             ex.getStackTrace();
             throw ex;
+        }
     }
 
-    throw new RuntimeException("Unknown error while creating order");
+    @Scheduled(fixedDelay = 5000)
+    public void publishOutboxEvents() {
+
+        List<OutboxEvent> events = outBoxEventRepo.findByStatus("NEW");
+
+        for (OutboxEvent event : events) {
+            try {
+
+                OrderEvent orderEvent =
+                        objectMapper.readValue(event.getPayload(), OrderEvent.class);
+
+                producer.sendOrderEvent(orderEvent);
+
+                event.setStatus("SENT");
+                outBoxEventRepo.save(event);
+
+            } catch (Exception e) {
+                log.error("Failed to publish event {}", event.getId(), e);
+            }
+        }
+    }
+
+
+    private String convertToJson(Object object) {
+        try {
+            return objectMapper.writeValueAsString(object);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error converting to JSON", e);
+        }
     }
 }
