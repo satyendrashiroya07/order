@@ -98,4 +98,20 @@ public class PaymentEventListener {
         processEntityRepo.save(processed);
         System.out.println("Order CANCELLED for orderId: " + orderId);
     }
+
+    @KafkaListener(topics = "payment-success1.DLQ", groupId = "order-group")
+    public void handleSuccessDLQ(PaymentEvent event) {
+
+        log.error("DLQ Event received: {}", event);
+
+        System.out.println("Order in DLQ for orderId: " + event.getOrderId());
+    }
+
+    @KafkaListener(topics = "payment-failed1.DLQ", groupId = "order-group")
+    public void handleFailureDLQ(PaymentEvent event) {
+
+        log.error("DLQ Event received: {}", event);
+
+        System.out.println("Order in DLQ for orderId: " + event.getOrderId());
+    }
 }
