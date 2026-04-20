@@ -2,6 +2,8 @@ package shiroya.order.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -44,21 +46,17 @@ public class OrderService {
     private final UserClient userClient;
     private final OutBoxEventRepo outBoxEventRepo;
     private final ObjectMapper objectMapper;
+    private final ProductClientService productClientService;
+
 
     @Transactional
     public Order createOrder(OrderRequest request, HttpServletRequest HttpRequest)
     {
         final String userId = HttpRequest.getAttribute("userId").toString();
-        final String url = "http://localhost:8082/product/validateAndReduce";
         final String authHeader = HttpRequest.getHeader("Authorization");
         final String token = "Bearer " + authHeader.substring(7);
 
         ResponseEntity<ProductResponse> responseProductAvailability;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", token);
-
-        HttpEntity<OrderRequest> entity = new HttpEntity<>(request, headers);
 
         Order saved = null;
         try
@@ -70,15 +68,8 @@ public class OrderService {
             }
             log.error("User Found Try to Find Product Details for Product: "+request.getProductId()+" in " + getClass());
 
-            responseProductAvailability =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.POST,
-                            entity,
-                            ProductResponse.class
-                    );
-
-            ProductResponse product = responseProductAvailability.getBody();
+            ProductResponse product =
+                    productClientService.checkProduct(request, token);
 
             String email = user.getUserEmail();
             double amount = product.getPrice()
