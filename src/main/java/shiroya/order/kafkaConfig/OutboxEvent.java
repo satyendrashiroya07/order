@@ -19,4 +19,6 @@ public class OutboxEvent {
     private String payload;
 
     private String status;
+
+    private String traceId;
 }
