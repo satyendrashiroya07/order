@@ -2,22 +2,18 @@ package shiroya.order.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.retry.annotation.Retry;
+import io.micrometer.tracing.Tracer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import shiroya.order.entity.Order;
 import shiroya.order.exception.InsufficientStockException;
-import shiroya.order.exception.ProductNotFoundException;
 import shiroya.order.exception.UserNotFoundException;
 import shiroya.order.feignClient.UserClient;
 import shiroya.order.kafkaConfig.OutboxEvent;
@@ -40,7 +36,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class OrderService {
 
-    private final  RestTemplate restTemplate;
+    private final Tracer tracer;
     private final OrderRepository repository;
     private final OrderProducer producer;
     private final UserClient userClient;
@@ -55,8 +51,6 @@ public class OrderService {
         final String userId = HttpRequest.getAttribute("userId").toString();
         final String authHeader = HttpRequest.getHeader("Authorization");
         final String token = "Bearer " + authHeader.substring(7);
-
-        ResponseEntity<ProductResponse> responseProductAvailability;
 
         Order saved = null;
         try
@@ -105,6 +99,9 @@ public class OrderService {
                 kafkaDbEvent.setEventType("ORDER_CREATED");
                 kafkaDbEvent.setPayload(convertToJson(event));
                 kafkaDbEvent.setStatus("NEW");
+                kafkaDbEvent.setTraceId(tracer.currentSpan() != null
+                        ? tracer.currentSpan().context().traceId()
+                        : null);
 
                 outBoxEventRepo.save(kafkaDbEvent);
 
@@ -136,6 +133,14 @@ public class OrderService {
 
                 OrderEvent orderEvent =
                         objectMapper.readValue(event.getPayload(), OrderEvent.class);
+
+                ProducerRecord<String, OutboxEvent> record =
+                        new ProducerRecord<>("order-created", event);
+                String traceId = event.getTraceId();
+
+                if (traceId != null) {
+                    record.headers().add("traceId", traceId.getBytes());
+                }
 
                 producer.sendOrderEvent(orderEvent);
 
