@@ -3,6 +3,7 @@ package shiroya.order.service;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,9 @@ import java.math.BigDecimal;
 @Service
 public class ProductClientService {
 
+    @Value("${product.service.url}")
+    private String productServiceUrl;
+
     @Autowired
     private RestTemplate restTemplate;
 
@@ -24,14 +28,13 @@ public class ProductClientService {
     @CircuitBreaker(name = "productService", fallbackMethod = "productFallback")
     public ProductResponse checkProduct(OrderRequest request, String token) {
 
-        final String url = "http://localhost:8082/product/validateAndReduce";
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", token);
 
         HttpEntity<OrderRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<ProductResponse> response =
-                restTemplate.exchange(url, HttpMethod.POST, entity, ProductResponse.class);
+                restTemplate.exchange(productServiceUrl, HttpMethod.POST, entity, ProductResponse.class);
 
         return response.getBody() != null ? response.getBody() : new ProductResponse();
     }
