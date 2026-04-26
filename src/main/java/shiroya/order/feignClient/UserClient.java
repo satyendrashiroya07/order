@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import shiroya.userEvent.UserDtoFeing;
 
-@FeignClient(name = "USER-SERVICE", url = "http://localhost:9095")
+@FeignClient(name = "user-service", url = "${user.service.url}")
 public interface UserClient {
 
     @GetMapping("/users/id/{userId}")
