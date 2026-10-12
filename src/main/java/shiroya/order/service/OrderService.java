@@ -88,7 +88,7 @@ public class OrderService {
                         .productId(saved.getProductId())
                         .quantity(saved.getQuantity())
                         .amount(amount)
-                        .paymentType("UPI")
+                        .paymentType("RAZORPAY")
                         .email(saved.getEmail())
                         .status(OrderStatus.PAYMENT_PENDING)
                         .build();

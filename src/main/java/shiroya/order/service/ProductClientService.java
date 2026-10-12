@@ -34,7 +34,7 @@ public class ProductClientService {
         HttpEntity<OrderRequest> entity = new HttpEntity<>(request, headers);
 
         ResponseEntity<ProductResponse> response =
-                restTemplate.exchange(productServiceUrl, HttpMethod.POST, entity, ProductResponse.class);
+                restTemplate.exchange(productServiceUrl, HttpMethod.POST, entity, ProductResponse.class, request.getProductId());
 
         return response.getBody() != null ? response.getBody() : new ProductResponse();
     }
