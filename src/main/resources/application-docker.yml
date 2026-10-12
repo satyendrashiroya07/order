@@ -79,4 +79,4 @@ user:
 
 product:
   service:
-    url: http://product-service:8082
+    url: http://product-service:8082/product/validateAndReduce?productId={productId};
