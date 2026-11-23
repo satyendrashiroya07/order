@@ -2,12 +2,14 @@ package shiroya.order.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -15,6 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.security.Key;
 import java.util.List;
@@ -27,6 +30,14 @@ public class JwtFilter extends OncePerRequestFilter {
     private static final String SECRET = "mysecretkeymysecretkeymysecretkey";
 
     private static final Key key = Keys.hmacShaKeyFor(SECRET.getBytes());
+
+    @Value("${jwt.secret}")
+    private String jwtSecret;
+
+    private SecretKey getSigningKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        return Keys.hmacShaKeyFor(keyBytes);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -45,7 +56,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         try {
             Claims claims = Jwts.parser()
-                    .setSigningKey(key)
+                    .setSigningKey(getSigningKey())
                     .parseClaimsJws(token)
                     .getBody();
 

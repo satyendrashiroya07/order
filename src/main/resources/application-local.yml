@@ -45,7 +45,7 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/shiroyadb
     username: postgres
-    password: shiroya
+    password: postgresql
     driver-class-name: org.postgresql.Driver
 
   jpa:
