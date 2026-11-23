@@ -43,7 +43,7 @@ spring:
   datasource:
     url: jdbc:postgresql://host.docker.internal:5432/shiroyadb
     username: postgres
-    password: shiroya
+    password: postgresql
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -80,3 +80,6 @@ user:
 product:
   service:
     url: http://product-service:8082/product/validateAndReduce?productId={productId};
+
+jwt:
+  secret: ${JWT_SECRET}
